@@ -61,7 +61,7 @@ def search_listings(
         condition, price (float), colors (list), brand, platform
 
     TODO:
-        1. Load all listings with load_listings().
+        1. Load all listings with load_listings() in data_loader.py.
         2. Filter by max_price and size (if provided).
         3. Score each remaining listing by keyword overlap with `description`.
         4. Drop any listings with a score of 0 (no relevant matches).
@@ -111,7 +111,7 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
     Generate a short, shareable outfit caption for the thrifted find.
 
     Args:
-        outfit:   The outfit suggestion string from suggest_outfit().
+        outfit: The outfit suggestion string from suggest_outfit().
         new_item: The listing dict for the thrifted item.
 
     Returns:
