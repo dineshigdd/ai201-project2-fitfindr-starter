@@ -239,7 +239,7 @@ Planning Loop ──────────────────────
      - **AI Tool:** Claude
      - **Inputs Provided:** The `Tool 1 (search_listings)` specification block from this `planning.md` (inputs, return values, and failure modes) along with `Tool 1` starter code and  `TODO` comments from `tools.py`.
      - **Expected Output:** An isolated Python implementation of `search_listings()` that utilizes `load_listings()` from the data loader.
-     - **Verification Strategy:** Before execution, I will review the code to ensure it filters by `description`, `size`, and `max_price` simultaneously and verify the implementation by writing automated test cases in `tests/test_tools.py` to validate three distinct scenarios: a successful match, an edge case with optional `None` fields, and an impossible search to ensure it returns an empty list `[]` instead of raising an exception.
+     - **Verification Strategy:** Before execution, I will review the code to ensure it filters by `description`, `size`, and `max_price` simultaneously and verify the implementation by writing automated test cases in `test_search_tools.py` to validate three distinct scenarios: a successful match, an edge case with optional `None` fields, and an impossible search to ensure it returns an empty list `[]` instead of raising an exception.
      1. A happy-path query matching specific listings (e.g., searching for a medium shirt under $50).
      2. A broad query with optional parameters set to `None` to ensure the filters are skipped gracefully.
      3. An impossible query (e.g., a designer gown for $5) to verify that it handles the failure mode cleanly by returning an empty list `[]` instead of throwing an exception.
@@ -248,7 +248,7 @@ Planning Loop ──────────────────────
      - **AI Tool:** Claude
      - **Inputs Provided:** The `Tool 2 (suggest_outfit)` specification block from this `planning.md` (inputs, return values, and failure modes) along with  `Tool 2` starter code and `TODO` comments from `tools.py`.
      - **Expected Output:** An isolated Python implementation of `suggest_outfit(new_item, wardrobe)` that correctly interfaces with Groq's `llama-3.3-70b-versatile` model.
-     - **Verification Strategy:** I will review the code generated and verify the implementation by writing automated test cases in `tests/test_tools.py` to validate three distinct scenarios:
+     - **Verification Strategy:** I will review the code generated and verify the implementation by writing automated test cases in `tests/test_suggest_outfit_tools.py` to validate three distinct scenarios:
      1. **Successful Generation:** Pass a valid selected item and a populated example wardrobe to ensure the tool successfully calls the LLM and returns a valid text string containing outfit recommendations.
      2. **Empty Wardrobe Fallback:** Pass an empty wardrobe dictionary (`get_empty_wardrobe()`) to verify the code does not crash and gracefully falls back to returning a string with general styling advice.
      3. **LLM/API Failure Mode:** Simulating an invalid API environment or network exception to verify that the tool cleanly handles the error, sets a helpful message, and gracefully prevents a system crash.
@@ -258,7 +258,7 @@ Planning Loop ──────────────────────
      - **Inputs Provided:** The `Tool 3 (create_fit_card)` specification block from this `planning.md` (inputs, return values, and failure modes) along with the empty starter function and `TODO` comments from `tools.py`.
      - **Expected Output:** An isolated Python implementation of `create_fit_card(outfit: str, new_item: dict)` that correctly interfaces with Groq's `llama-3.3-70b-versatile` model 
                          with an elevated temperature (e.g., 0.7 or 0.8) to ensure unique caption variations.
-     - **Verification Strategy:** I will review the code generated and verify the implementation by writing automated test cases in `tests/test_tools.py` to validate three distinct scenarios:
+     - **Verification Strategy:** I will review the code generated and verify the implementation by writing automated test cases in `test_create_fit_card_tool.py` to validate three distinct scenarios:
      1. **Successful Generation:** Pass a valid outfit suggestion and a populated listing item dictionary to ensure the tool successfully calls the LLM and returns a short shareable caption string.
      2. **Empty/White-space Outfit Fallback:** Pass an empty string `""` and a whitespace-only string `"   "` as the outfit input to verify the function bypasses the LLM completely , does not crash , and return a descriptive error message string.
      3. **LLM/API Failure Mode:** Simulating an invalid API environment or network exception to verify that the tool cleanly handles the error, sets a helpful message, and gracefully prevents a system crash.

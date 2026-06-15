@@ -18,7 +18,15 @@ Usage (once implemented):
     print(result["error"])   # None on success
 """
 
-from tools import search_listings, suggest_outfit, create_fit_card
+import json
+import re
+
+from tools import (
+    search_listings,
+    suggest_outfit,
+    create_fit_card,
+    _get_groq_client,
+)
 
 
 # ── session state ─────────────────────────────────────────────────────────────
@@ -43,6 +51,87 @@ def _new_session(query: str, wardrobe: dict) -> dict:
         "fit_card": None,            # string returned by create_fit_card
         "error": None,               # set if the interaction ended early
     }
+
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def _parse_query(query: str) -> dict:
+    """
+    Extract search parameters (description, size, max_price) from the raw query.
+
+    Step 2 of the planning loop uses the LLM to parse the free-form request into
+    structured fields — this keeps the `description` clean (just item keywords,
+    no filler words) so search_listings scores relevance accurately.
+
+    Returns a dict with keys: description (str), size (str | None),
+    max_price (float | None). Returns an empty dict {} if parsing fails or no
+    usable description could be extracted, which the planning loop treats as a
+    failure to extract parameters.
+    """
+    prompt = (
+        "Extract structured search parameters from a user's secondhand-clothing "
+        "request. Return ONLY a JSON object with exactly these keys:\n"
+        '  "description": a short string of item keywords (type, style, color). '
+        "Never include size or price words here.\n"
+        '  "size": the requested size as a string (e.g. "M", "US 8"), or null if '
+        "none is mentioned.\n"
+        '  "max_price": the maximum price as a number, or null if none is '
+        "mentioned.\n\n"
+        f"User request: {query}\n\n"
+        "JSON:"
+    )
+
+    try:
+        client = _get_groq_client()
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+        )
+        raw = response.choices[0].message.content.strip()
+        # Strip ```json ... ``` fences the model may add.
+        raw = re.sub(r"^```(?:json)?|```$", "", raw, flags=re.MULTILINE).strip()
+        data = json.loads(raw)
+    except Exception:
+        return {}
+
+    description = (data.get("description") or "").strip()
+    if not description:
+        return {}
+
+    size = data.get("size")
+    if isinstance(size, str):
+        size = size.strip() or None
+    elif size is not None:
+        size = str(size)
+
+    max_price = data.get("max_price")
+    if isinstance(max_price, str):
+        match = re.search(r"\d+(?:\.\d+)?", max_price)
+        max_price = float(match.group()) if match else None
+    elif isinstance(max_price, (int, float)):
+        max_price = float(max_price)
+    else:
+        max_price = None
+
+    return {"description": description, "size": size, "max_price": max_price}
+
+
+def _is_tool_error(text: str) -> bool:
+    """
+    True if a tool returned a descriptive error string instead of real output.
+
+    suggest_outfit and create_fit_card never raise — on failure they return a
+    string starting with "Sorry, I ran into a problem" / "Sorry, I couldn't".
+    Empty or whitespace-only output is treated as a failure too. (The empty
+    wardrobe path of suggest_outfit returns normal advice, so it is NOT flagged.)
+    """
+    if not text or not text.strip():
+        return True
+    lowered = text.strip().lower()
+    return lowered.startswith("sorry, i ran into a problem") or lowered.startswith(
+        "sorry, i couldn't"
+    )
 
 
 # ── planning loop ─────────────────────────────────────────────────────────────
@@ -92,9 +181,67 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     Before writing code, complete the Planning Loop and State Management sections
     of planning.md — your implementation should match what you described there.
     """
-    # TODO: implement the planning loop
+    # Step 1: fresh session — the single source of truth for this interaction.
     session = _new_session(query, wardrobe)
-    session["error"] = "Planning loop not yet implemented."
+
+    # Step 2: parse the query into description / size / max_price.
+    session["parsed"] = _parse_query(query)
+    if not session["parsed"]:
+        session["error"] = (
+            "Sorry, I couldn't understand your request. Try describing the item "
+            "you're after, e.g. \"vintage graphic tee under $30, size M\"."
+        )
+        return session
+
+    parsed = session["parsed"]
+
+    # Step 3: search the listings with the parsed parameters.
+    try:
+        session["search_results"] = search_listings(
+            description=parsed["description"],
+            size=parsed["size"],
+            max_price=parsed["max_price"],
+        )
+    except Exception as e:
+        session["error"] = (
+            f"Something went wrong while searching listings ({type(e).__name__}). "
+            "Please try again."
+        )
+        return session
+
+    # No matches → halt early, do NOT call downstream tools on empty input.
+    if not session["search_results"]:
+        session["error"] = (
+            "No listings matched your search. Try different keywords, a different "
+            "size, or a higher price ceiling."
+        )
+        return session
+
+    # Step 4: select the top (most relevant) result.
+    session["selected_item"] = session["search_results"][0]
+
+    # Step 5: suggest an outfit. An empty wardrobe is a success path (general
+    # advice); only a tool error string halts the workflow here.
+    outfit = suggest_outfit(session["selected_item"], wardrobe)
+    if _is_tool_error(outfit):
+        session["error"] = (
+            "I found an item but couldn't generate outfit ideas right now. "
+            "Please try again in a moment."
+        )
+        return session
+    session["outfit_suggestion"] = outfit
+
+    # Step 6: create the shareable fit card from the outfit + selected item.
+    card = create_fit_card(session["outfit_suggestion"], session["selected_item"])
+    if _is_tool_error(card):
+        session["error"] = (
+            "I styled an outfit but couldn't create a shareable fit card. "
+            "Please try again in a moment."
+        )
+        return session
+    session["fit_card"] = card
+
+    # Step 7: success — return the completed session.
     return session
 
 
