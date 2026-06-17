@@ -162,6 +162,7 @@ During test execution, an impossible query was passed to evaluate this graceful 
 * **Observed Test Outcome:** The function successfully caught the empty constraint match and returned `[]` cleanly without breaking. This was verified via `pytest` inside our automated test case:
 
 ```python
+#in test_search_tools.py
 def test_search_impossible_returns_empty():
     results = search_listings("designer gown", size="XXS", max_price=5)
     assert results == []   # Verifies an empty list is returned with no exception raised
@@ -184,7 +185,7 @@ To verify that the system handles a total breakdown of the LLM provider without 
 
 
 ```python
-#in test_suggest_outfit_tool.py
+#in test_suggest_outfit_tools.py
 def test_suggest_outfit_llm_failure(monkeypatch):
     def boom():
         raise Exception("LLM API failure")
@@ -211,6 +212,7 @@ The shareable fit card tool employs two defensive validation layers to guarantee
 To verify that the pre-execution input guard blocks blank entries from hitting your API, you can look at the automated isolation tests inside our test suite:
 
 ```python
+#in test_create_fit_card_tools.py
 def test_create_fit_card_empty_outfit(monkeypatch):
     # If the LLM wrapper is reached, this rule triggers a total failure—
     # proving the validation guard intercepts execution BEFORE any client call.
