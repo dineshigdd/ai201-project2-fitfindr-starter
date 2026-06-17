@@ -87,11 +87,19 @@ def _parse_query(query: str) -> dict:
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
+            response_format={"type": "json_object"},  # force valid JSON output
         )
         raw = response.choices[0].message.content.strip()
         # Strip ```json ... ``` fences the model may add.
         raw = re.sub(r"^```(?:json)?|```$", "", raw, flags=re.MULTILINE).strip()
-        data = json.loads(raw)
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            # Fallback: pull the first {...} block out of any surrounding prose.
+            match = re.search(r"\{.*\}", raw, flags=re.DOTALL)
+            if not match:
+                return {}
+            data = json.loads(match.group())
     except Exception:
         return {}
 
@@ -255,6 +263,7 @@ if __name__ == "__main__":
         query="looking for a vintage graphic tee under $30",
         wardrobe=get_example_wardrobe(),
     )
+    
     if session["error"]:
         print(f"Error: {session['error']}")
     else:
@@ -267,4 +276,7 @@ if __name__ == "__main__":
         query="designer ballgown size XXS under $5",
         wardrobe=get_example_wardrobe(),
     )
+    print(f"Found: {session2['selected_item']}") # should be None
+    print(f"\nOutfit: {session2['outfit_suggestion']}") # should be None
+    print(f"\nFit card: {session2['fit_card']}") # should be None
     print(f"Error message: {session2['error']}")
