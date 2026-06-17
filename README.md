@@ -108,7 +108,7 @@ graph TD
     B --> C(Step 2: LLM Query Parsing via Groq)
     C -->|Extraction Fails / No Description| D[Halt Loop: Return Understanding Error]
     C -->|Success: Structured Schema| E(Step 3: search_listings Execution)
-    E -->|Empty Array Returned '[]'| F[Halt Loop: Return No-Results Error]
+    E -->|Empty Array Returned| F[Halt Loop: Return No-Results Error]
     E -->|Populated Array Returned| G(Step 4: State Management Selection)
     G --> H(Step 5: suggest_outfit Execution)
     H -->|Tool Error Caught / Empty| I[Halt Loop: Return Styling Failure Message]
