@@ -97,8 +97,8 @@ Generate a short, shareable description (more like a caption to tha can share in
 
 **What it returns:**
 <!-- Describe the return value -->
-If outfit is empty or whitespace-only outfit string:
-- Return a descriptive error message string,and DO NOT raise an exception.
+Returns a string containing a short, creative, and shareable social media caption based on the outfit suggestion and item details.
+If the incoming `outfit` string is empty or whitespace-only, Return a descriptive error message string,and DO NOT raise an exception.
 
 **What happens if it fails or returns nothing:**
 <!-- What should the agent do if the outfit data is incomplete? -->
